@@ -1,0 +1,391 @@
+/* =====================================================================
+   style.css — ASPETTO DEL SITO
+   Indice:
+     1. Variabili (colori, font, misure)   6. Pagina Progetti + modale
+     2. Base e sfondo                      7. Pagina Istruzione
+     3. Navigazione                        8. Pagina Competenze
+     4. Viste e transizioni tra pagine     9. Cursore, footer, accessibilità
+     5. Home e carosello
+   ===================================================================== */
+
+/* ---------- 1. VARIABILI ----------
+   Tutti i colori vivono qui: cambiando un valore cambia tutto il sito. */
+:root {
+  --nero: #000000;
+  --superficie: #0b0b0d;     /* pannelli leggermente staccati dal nero */
+  --bordo: #26262b;          /* linee sottili */
+  --bianco: #f5f5f7;         /* testo principale */
+  --grigio: #8b8b94;         /* testo secondario */
+  --segnale: #7cf3ff;        /* unico colore "acceso": stati attivi e dettagli HUD */
+
+  --f-titoli: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --f-testo: "Sora", "Helvetica Neue", Arial, sans-serif;
+  --f-hud: "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+  --raggio: 14px;
+  --ease: cubic-bezier(.2, .8, .2, 1);  /* curva usata da quasi tutte le animazioni */
+  color-scheme: dark;
+}
+
+/* ---------- 2. BASE ---------- */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--nero);
+  color: var(--bianco);
+  font: 300 1rem/1.65 var(--f-testo);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+img, video { max-width: 100%; display: block; }
+a { color: inherit; }
+h1, h2, h3 { font-family: var(--f-titoli); margin: 0; line-height: 1.05; text-wrap: balance; }
+p { margin: 0; }
+:focus-visible { outline: 2px solid var(--segnale); outline-offset: 3px; border-radius: 6px; }
+
+/* etichette piccole in monospazio, stile "interfaccia di bordo" */
+.hud {
+  font-family: var(--f-hud);
+  font-size: .78rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--grigio);
+}
+
+/* sfondo: canvas a tutto schermo dietro a tutto */
+#sfondo { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; }
+/* griglia sottile che sfuma verso il basso, per l'effetto "futuristico" */
+.griglia {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(var(--bordo) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bordo) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: .25;
+  mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
+}
+main, .nav, .piede { position: relative; z-index: 1; }
+
+/* ---------- 3. NAVIGAZIONE ---------- */
+.nav {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px));
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  background: color-mix(in srgb, var(--nero) 70%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--bordo);
+}
+.logo { font-family: var(--f-titoli); font-weight: 800; text-decoration: none; font-size: 1.1rem; }
+.logo span { color: var(--segnale); animation: lampeggia 1s steps(1) infinite; }
+.nav nav { position: relative; }
+.nav ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 2px; }
+.nav ul a {
+  display: block; padding: 8px 14px; text-decoration: none;
+  font-family: var(--f-hud); font-size: .8rem; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--grigio); transition: color .3s;
+}
+.nav ul a:hover, .nav ul a.attivo { color: var(--bianco); }
+/* la barretta luminosa: router.js ne imposta posizione e larghezza */
+.indicatore {
+  position: absolute; bottom: -2px; left: 0; height: 2px; width: 0;
+  background: var(--segnale); box-shadow: 0 0 12px var(--segnale);
+  transition: transform .5s var(--ease), width .5s var(--ease);
+}
+@media (max-width: 560px) {
+  .logo { display: none; }
+  .nav { justify-content: center; }
+  .nav ul a { padding: 8px 9px; font-size: .72rem; }
+}
+
+/* ---------- 4. VISTE (le quattro "pagine") ---------- */
+.vista { display: none; overflow-x: clip; }  /* niente scroll orizzontale da elementi in 3D o in rotazione */
+.vista.attiva { display: block; animation: entra .8s var(--ease) both; }
+/* entrata: la pagina si "apre" dall'alto come uno scanner */
+@keyframes entra {
+  from { clip-path: inset(0 0 100% 0); opacity: 0; transform: translateY(24px); }
+  to   { clip-path: inset(0 0 0 0);    opacity: 1; transform: none; }
+}
+.pagina, .home {
+  max-width: 1200px; margin: 0 auto;
+  padding: clamp(32px, 6vw, 72px) max(16px, env(safe-area-inset-right, 0px)) 80px max(16px, env(safe-area-inset-left, 0px));
+}
+.intestazione { display: grid; gap: 10px; margin-bottom: 36px; }
+.intestazione h2 { font-size: clamp(2.2rem, 1.4rem + 4vw, 4.6rem); font-weight: 800; letter-spacing: -.02em; }
+.sottotitolo { color: var(--grigio); }
+.titoletto { font-size: 1.3rem; margin: 56px 0 18px; }
+
+/* ---------- 5. HOME ---------- */
+.home {
+  display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: clamp(28px, 5vw, 72px); align-items: center;
+}
+@media (max-width: 860px) { .home { grid-template-columns: 1fr; } }
+.home-testo { display: grid; gap: 20px; min-width: 0; }
+
+/* Nome con effetto glitch: due copie del testo (::before/::after, prese da
+   data-text) sfasate e tagliate a strisce che si muovono */
+.glitch {
+  position: relative; font-size: clamp(2.6rem, 1.4rem + 5.5vw, 6rem);
+  font-weight: 800; letter-spacing: -.03em; line-height: .95;
+}
+.glitch::before, .glitch::after {
+  content: attr(data-text); position: absolute; inset: 0; pointer-events: none;
+}
+.glitch::before { color: var(--segnale); animation: taglio1 3.2s infinite steps(1); }
+.glitch::after  { color: #ff3df2; animation: taglio2 3.2s infinite steps(1); mix-blend-mode: screen; }
+@keyframes taglio1 {
+  0%, 88%, 100% { clip-path: inset(100% 0 0 0); transform: none; }
+  90% { clip-path: inset(10% 0 60% 0); transform: translate(-4px, 0); }
+  94% { clip-path: inset(55% 0 20% 0); transform: translate(3px, 0); }
+}
+@keyframes taglio2 {
+  0%, 89%, 100% { clip-path: inset(100% 0 0 0); transform: none; }
+  91% { clip-path: inset(70% 0 5% 0); transform: translate(4px, 0); }
+  95% { clip-path: inset(20% 0 65% 0); transform: translate(-3px, 0); }
+}
+.ruolo { font-family: var(--f-hud); font-size: clamp(1rem, .9rem + .5vw, 1.3rem); color: var(--segnale); min-height: 1.5em; }
+.caret { display: inline-block; width: .6ch; height: 1.1em; background: var(--segnale); vertical-align: text-bottom; margin-left: 3px; animation: lampeggia 1s steps(1) infinite; }
+@keyframes lampeggia { 50% { opacity: 0; } }
+.bio { color: var(--grigio); max-width: 60ch; }
+.azioni { display: flex; gap: 12px; flex-wrap: wrap; }
+.bottone {
+  display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px;
+  border: 1px solid var(--bordo); border-radius: 999px; text-decoration: none;
+  font: 400 .92rem/1 var(--f-testo); background: var(--superficie); color: var(--bianco); cursor: pointer;
+  transition: border-color .3s, box-shadow .3s, transform .3s var(--ease);
+}
+.bottone:hover { border-color: var(--bianco); transform: translateY(-2px); }
+.bottone.pieno { background: var(--bianco); color: var(--nero); border-color: var(--bianco); font-weight: 600; }
+.bottone.pieno:hover { box-shadow: 0 0 0 6px color-mix(in srgb, var(--bianco) 15%, transparent); }
+.numeri { display: flex; gap: 32px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--bordo); }
+.numeri div { display: grid; padding-top: 14px; }
+.numeri b { font-family: var(--f-titoli); font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.numeri span { font-size: .8rem; color: var(--grigio); }
+
+/* --- Carosello ---
+   Le slide sono tutte sovrapposte; carousel.js assegna a ognuna una classe
+   (.attuale, .prossima, .precedente, .nascosta) e il CSS le posiziona in 3D. */
+.carosello { position: relative; display: grid; gap: 14px; min-width: 0; }
+.carosello-pista {
+  position: relative; aspect-ratio: 4 / 5; max-width: 100%;
+  perspective: 1200px; touch-action: pan-y;
+}
+.slide {
+  position: absolute; inset: 0; border-radius: var(--raggio); overflow: hidden;
+  border: 1px solid var(--bordo); background: var(--superficie);
+  transition: transform .9s var(--ease), opacity .9s var(--ease), filter .9s var(--ease);
+}
+.slide img { width: 100%; height: 100%; object-fit: cover; }
+.slide.attuale    { transform: none; opacity: 1; z-index: 3; }
+.slide.prossima   { transform: translateX(14%) translateZ(-160px) rotateY(-14deg); opacity: .45; z-index: 2; filter: blur(1px); }
+.slide.precedente { transform: translateX(-14%) translateZ(-160px) rotateY(14deg); opacity: 0; z-index: 1; }
+.slide.nascosta   { transform: translateZ(-300px); opacity: 0; z-index: 0; }
+.slide figcaption {
+  position: absolute; left: 14px; bottom: 12px; right: 14px;
+  font-family: var(--f-hud); font-size: .74rem; letter-spacing: .1em; text-transform: uppercase;
+}
+/* angoli da "mirino" sopra la foto attiva */
+.slide.attuale::after {
+  content: ""; position: absolute; inset: 10px; pointer-events: none;
+  background:
+    linear-gradient(var(--bianco), var(--bianco)) top left / 18px 1px no-repeat,
+    linear-gradient(var(--bianco), var(--bianco)) top left / 1px 18px no-repeat,
+    linear-gradient(var(--bianco), var(--bianco)) bottom right / 18px 1px no-repeat,
+    linear-gradient(var(--bianco), var(--bianco)) bottom right / 1px 18px no-repeat;
+}
+.carosello-hud { display: flex; justify-content: space-between; align-items: center; }
+.carosello-frecce { display: flex; gap: 8px; }
+.freccia {
+  width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--bordo);
+  background: var(--superficie); color: var(--bianco); cursor: pointer; font-size: 1rem;
+  transition: border-color .3s, background .3s;
+}
+.freccia:hover { border-color: var(--bianco); }
+/* i "punti" sono barrette che si riempiono mentre la foto resta a schermo */
+.carosello-punti { display: flex; gap: 6px; }
+.punto { flex: 1; height: 3px; border: 0; padding: 0; background: var(--bordo); border-radius: 3px; overflow: hidden; cursor: pointer; }
+.punto i { display: block; height: 100%; width: 0; background: var(--bianco); }
+.punto.fatto i { width: 100%; }
+.punto.attivo i { animation: riempi var(--durata, 4s) linear forwards; }
+.carosello.in-pausa .punto.attivo i { animation-play-state: paused; }
+@keyframes riempi { to { width: 100%; } }
+
+/* Riquadro "media in arrivo": usato ovunque manchi una foto o un video */
+.vuoto {
+  position: relative; width: 100%; height: 100%; min-height: 160px; overflow: hidden;
+  display: grid; place-items: center; text-align: center;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 3px, color-mix(in srgb, var(--bianco) 4%, transparent) 3px 4px),
+    radial-gradient(circle at 50% 40%, #16161b, var(--superficie) 70%);
+  color: var(--grigio); font-family: var(--f-hud); font-size: .74rem; letter-spacing: .12em; text-transform: uppercase;
+}
+.vuoto span { display: grid; gap: 8px; justify-items: center; }
+.vuoto b { font-size: 1.6rem; color: var(--bianco); font-weight: 400; }
+/* la linea di scansione che scorre */
+.vuoto::before {
+  content: ""; position: absolute; left: 0; right: 0; height: 40%; top: -40%;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--segnale) 14%, transparent), transparent);
+  animation: scansione 3.2s linear infinite;
+}
+@keyframes scansione { to { top: 100%; } }
+
+/* ---------- 6. PROGETTI ---------- */
+.filtri { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 26px; }
+.filtro {
+  font-family: var(--f-hud); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase;
+  padding: 9px 16px; border-radius: 999px; border: 1px solid var(--bordo);
+  background: transparent; color: var(--grigio); cursor: pointer; transition: all .3s;
+}
+.filtro[aria-pressed="true"] { background: var(--bianco); color: var(--nero); border-color: var(--bianco); }
+.progetti { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 18px; }
+.scheda {
+  position: relative; display: flex; flex-direction: column; text-align: left;
+  border: 1px solid var(--bordo); border-radius: var(--raggio); overflow: hidden;
+  background: var(--superficie); color: var(--bianco); cursor: pointer; padding: 0; font: inherit;
+  transition: transform .5s var(--ease), border-color .3s, opacity .4s, filter .4s;
+  transform-style: preserve-3d;
+}
+.scheda:hover { border-color: var(--bianco); }
+/* bagliore che segue il mouse: --mx/--my impostate da projects.js */
+.scheda::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s;
+  background: radial-gradient(300px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--bianco) 10%, transparent), transparent 60%);
+}
+.scheda:hover::after { opacity: 1; }
+.scheda.filtrata { opacity: .12; filter: grayscale(1) blur(2px); pointer-events: none; transform: scale(.96); }
+.scheda-media { aspect-ratio: 16 / 9; border-bottom: 1px solid var(--bordo); }
+.scheda-media img, .scheda-media video { width: 100%; height: 100%; object-fit: cover; }
+.scheda-corpo { padding: 18px 20px 22px; display: grid; gap: 10px; }
+.scheda-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.scheda h3 { font-size: 1.35rem; }
+.scheda p { color: var(--grigio); font-size: .94rem; }
+.badge { font-family: var(--f-hud); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; padding: 4px 9px; border: 1px solid var(--bordo); border-radius: 999px; color: var(--grigio); white-space: nowrap; }
+.badge.live { color: var(--segnale); border-color: color-mix(in srgb, var(--segnale) 50%, transparent); }
+.badge.live::before { content: "● "; animation: lampeggia 1.2s steps(1) infinite; }
+.tech { display: flex; gap: 6px; flex-wrap: wrap; }
+.tech span { font-family: var(--f-hud); font-size: .72rem; padding: 3px 8px; border-radius: 6px; background: #151519; color: var(--grigio); }
+
+/* Modale di dettaglio */
+.modale[hidden] { display: none; }
+.modale { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; }
+.modale-sfondo { position: absolute; inset: 0; background: color-mix(in srgb, var(--nero) 80%, transparent); backdrop-filter: blur(6px); animation: appare .3s both; }
+.modale-box {
+  position: relative; width: min(860px, 100%); max-height: 88vh; overflow-y: auto;
+  background: var(--superficie); border: 1px solid var(--bordo); border-radius: 18px;
+  padding: clamp(18px, 4vw, 34px); display: grid; gap: 18px;
+  animation: apri .5s var(--ease) both;
+}
+@keyframes appare { from { opacity: 0; } }
+@keyframes apri { from { opacity: 0; transform: translateY(30px) scale(.97); clip-path: inset(0 0 100% 0 round 18px); } }
+.chiudi { position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--bordo); background: var(--nero); color: var(--bianco); cursor: pointer; z-index: 2; }
+.modale h3 { font-size: clamp(1.6rem, 1.2rem + 2vw, 2.4rem); padding-right: 40px; }
+.modale-media { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.modale-media > * { aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; border: 1px solid var(--bordo); }
+.modale-media img, .modale-media video { width: 100%; height: 100%; object-fit: cover; }
+.modale p { color: var(--grigio); max-width: 68ch; }
+
+/* ---------- 7. ISTRUZIONE ---------- */
+.timeline { list-style: none; margin: 0; padding: 0 0 0 34px; position: relative; display: grid; gap: 22px; }
+/* la linea verticale si "disegna" quando la pagina entra */
+.timeline::before {
+  content: ""; position: absolute; left: 8px; top: 8px; bottom: 8px; width: 1px; background: var(--bianco);
+  transform-origin: top; animation: disegna 1.4s var(--ease) both .3s;
+}
+@keyframes disegna { from { transform: scaleY(0); } }
+.tappa {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 28px; align-items: start;
+  border: 1px solid var(--bordo); border-radius: var(--raggio); background: var(--superficie); padding: clamp(18px, 3vw, 28px);
+  animation: entra .8s var(--ease) both; animation-delay: calc(var(--i) * .15s + .2s);
+}
+.tappa::before {
+  content: ""; position: absolute; left: -31px; top: 28px; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--nero); border: 1px solid var(--bianco);
+}
+.tappa.in-corso::before { background: var(--segnale); border-color: var(--segnale); box-shadow: 0 0 0 0 var(--segnale); animation: impulso 1.8s infinite; }
+@keyframes impulso { to { box-shadow: 0 0 0 12px transparent; } }
+@media (max-width: 640px) { .tappa { grid-template-columns: 1fr; } }
+.tappa-testo { display: grid; gap: 8px; min-width: 0; }
+.tappa h3 { font-size: clamp(1.1rem, 1rem + .6vw, 1.45rem); }
+.tappa .ente { color: var(--bianco); }
+.tappa ul { margin: 6px 0 0; padding-left: 1.1em; color: var(--grigio); display: grid; gap: 4px; }
+.tesi { border-left: 1px solid var(--segnale); padding-left: 14px; margin-top: 8px; display: grid; gap: 4px; }
+.tesi b { font-weight: 600; }
+/* anello del voto: SVG con un cerchio il cui tratto si riempie (education.js) */
+.anello { width: 120px; height: 120px; position: relative; display: grid; place-items: center; }
+.anello svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.anello circle { fill: none; stroke-width: 4; }
+.anello .base { stroke: var(--bordo); }
+.anello .valore { stroke: var(--bianco); stroke-linecap: round; transition: stroke-dashoffset 1.8s var(--ease); }
+.anello strong { font-family: var(--f-titoli); font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.anello small { display: block; text-align: center; font-family: var(--f-hud); font-size: .66rem; color: var(--grigio); }
+.galleria { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 14px; }
+.galleria figure { margin: 0; aspect-ratio: 3 / 4; border-radius: var(--raggio); overflow: hidden; border: 1px solid var(--bordo); position: relative; transition: transform .5s var(--ease); }
+.galleria figure:hover { transform: translateY(-6px) rotate(-1deg); }
+.galleria img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---------- 8. COMPETENZE ---------- */
+.competenze { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 40px; align-items: start; }
+@media (max-width: 900px) { .competenze { grid-template-columns: 1fr; } }
+/* Orbita: anelli concentrici che ruotano; ogni etichetta ruota al contrario
+   per restare dritta. Le posizioni le calcola skills.js. */
+.orbita { position: relative; aspect-ratio: 1; width: min(100%, 480px); margin: 0 auto; }
+.nucleo {
+  position: absolute; inset: 41%; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--f-titoli); font-weight: 800; background: var(--bianco); color: var(--nero);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--bianco) 35%, transparent);
+}
+.anello-orbita { position: absolute; border: 1px dashed var(--bordo); border-radius: 50%; animation: gira var(--t) linear infinite; }
+.anello-orbita.inverso { animation-direction: reverse; }
+.pianeta {
+  position: absolute; left: 50%; top: 50%; translate: -50% -50%;
+  font-family: var(--f-hud); font-size: .7rem; white-space: nowrap; padding: 4px 9px; border-radius: 999px;
+  border: 1px solid var(--bordo); background: var(--nero); color: var(--bianco);
+  animation: gira var(--t) linear infinite reverse;
+}
+.anello-orbita.inverso .pianeta { animation-direction: normal; }
+@keyframes gira { to { rotate: 360deg; } }
+.orbita:hover .anello-orbita, .orbita:hover .pianeta { animation-play-state: paused; }
+
+.gruppi { display: grid; gap: 14px; }
+.gruppo { border: 1px solid var(--bordo); border-radius: var(--raggio); background: var(--superficie); padding: 18px 20px; display: grid; gap: 12px; transition: border-color .3s; }
+.gruppo:hover { border-color: var(--bianco); }
+.gruppo h3 { font-family: var(--f-hud); font-weight: 500; font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; color: var(--grigio); }
+.voci { display: flex; flex-wrap: wrap; gap: 8px; }
+.voce {
+  padding: 7px 12px; border-radius: 8px; border: 1px solid var(--bordo); font-size: .9rem;
+  animation: entra .6s var(--ease) both; animation-delay: calc(var(--i) * 40ms + .2s);
+  transition: background .25s, color .25s;
+}
+.voce:hover { background: var(--bianco); color: var(--nero); }
+.lingua { display: grid; grid-template-columns: 90px 1fr auto; gap: 12px; align-items: center; font-size: .9rem; }
+.barra { height: 4px; background: var(--bordo); border-radius: 4px; overflow: hidden; }
+.barra i { display: block; height: 100%; background: var(--bianco); width: var(--v); animation: cresce 1.4s var(--ease) both .4s; }
+@keyframes cresce { from { width: 0; } }
+.lingua span:last-child { color: var(--grigio); font-size: .8rem; }
+
+/* ---------- 9. CURSORE, FOOTER, ACCESSIBILITÀ ---------- */
+.cursore {
+  position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; display: none;
+  width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%;
+  border: 1px solid var(--bianco); mix-blend-mode: difference;
+  transition: width .25s, height .25s, margin .25s, background .25s;
+}
+.cursore.grande { width: 64px; height: 64px; margin: -32px 0 0 -32px; background: var(--bianco); }
+@media (pointer: fine) { .cursore { display: block; } }
+
+.piede {
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  border-top: 1px solid var(--bordo);
+  padding: 20px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.piede a { text-decoration: none; }
+.piede a:hover { color: var(--bianco); }
+
+/* Chi ha attivato "riduci movimento" nel sistema non vede animazioni */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  .cursore { display: none !important; }
+}
